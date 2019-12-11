@@ -1,1 +1,3 @@
 cat *.log |grep "keyWord" -color -a10
+
+1111

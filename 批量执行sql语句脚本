@@ -1,0 +1,13 @@
+#!/bin/bash
+p="/backup" //sql文件的目录，写绝对路径
+dbUser='root'
+dbPassword='123'
+dbName='databasename'//数据库名称
+cd $p;
+for f in `ls $p/*.sql`
+do
+echo $f;
+mysql -u $dbUser -p$dbPassword -f $dbName -e "source $f";
+mv $f $f.done;
+done
+echo 'OK!'

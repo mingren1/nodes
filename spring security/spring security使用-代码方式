@@ -1,0 +1,198 @@
+1.自定义配置类：
+
+@EnableWebSecurity
+@EnableGlobalMethodSecurity(prePostEnabled = true)
+public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
+
+    private final CustomPasswordEncoder customPasswordEncoder;
+    private final CustomUserDetailsService customUserDetailsService;
+    private final CommonProperties commonProperties;
+
+    @Autowired
+    public SecurityConfiguration(CustomPasswordEncoder customPasswordEncoder, CustomUserDetailsService customUserDetailsService, CommonProperties commonProperties) {
+        this.customPasswordEncoder = customPasswordEncoder;
+        this.customUserDetailsService = customUserDetailsService;
+        this.commonProperties = commonProperties;
+    }
+
+    @Autowired
+    private LoginAuthenticationProvider loginAuthenticationProvider;
+
+    /**
+     * http配置
+     * @param http
+     * @throws Exception
+     */
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http.formLogin()
+                .loginPage("/login")
+                .loginProcessingUrl("/doLogin")
+                // 指定登录页面及成功后跳转页面
+                .successForwardUrl("/loadIndex")
+                .and().authorizeRequests()
+                .antMatchers(commonProperties.getAllowList())
+                // 上述url所有用户都可访问(无需登录)
+                .permitAll()
+                .and()
+                .authorizeRequests()
+                .anyRequest()
+                // 除上面之外的都需要登录
+                .authenticated()
+                .and()
+                .logout()
+                // 指定登出url
+                .logoutUrl("/doLogout")
+                .invalidateHttpSession(true)
+                .and()
+                .headers()
+                .frameOptions()
+                // frame框架
+                .sameOrigin()
+                // csrf跨域保护忽略特殊url
+                .and().csrf().ignoringAntMatchers(commonProperties.getAllowList());
+    }
+
+    /**
+     * 静态资源放行
+     * @param web
+     */
+    @Override
+    public void configure(WebSecurity web) {
+        //静态资源过滤
+        web.ignoring().antMatchers("/**/*.js", "/**/*.css", "/**/*.png", "/**/*.jpg", "/**/*.gif", "/**/*.map");
+    }
+
+    /**
+     * 自定义认证方法
+     * @param auth
+     * @throws Exception
+     */
+    @Override
+    protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+        loginAuthenticationProvider.setUserDetailsService(customUserDetailsService);
+        loginAuthenticationProvider.setPasswordEncoder(customPasswordEncoder);
+        auth.authenticationProvider(loginAuthenticationProvider);
+        super.configure(auth);
+    }
+
+    /**
+     * 自定义认证管理类
+     * @return
+     * @throws Exception
+     */
+    @Bean
+    @Override
+    public AuthenticationManager authenticationManagerBean() throws Exception {
+        return super.authenticationManagerBean();
+    }
+
+    /**
+     * 自定义密码加密类
+     * @return
+     */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+    }
+
+}
+
+2.自定义账号存储类：
+
+@Service
+public class CustomUserDetailsService implements UserDetailsService {
+    private final AuthTokenService authTokenService;
+    private Logger log = LoggerFactory.getLogger(this.getClass());
+
+    @Autowired
+    public CustomUserDetailsService(AuthTokenService authTokenService) {
+        this.authTokenService = authTokenService;
+    }
+
+    /**
+     * 将用户详细信息放入security session中
+     * @param username
+     * @return
+     */
+    @Override
+    public UserDetails loadUserByUsername(String username) {
+        try{
+            Assert.isTrue(StringUtils.isNotBlank(username),"用户或密码错误，请重新输入");
+            // 通过用户名获取用户详细信息,构造权限
+            UserDTO userInfo = authTokenService.getUserDetail(username);
+            ResourceBO resource = userInfo.getResource();
+            List<GrantedAuthority> authorities = new ArrayList<GrantedAuthority>();
+            if(resource != null){
+                buildAuth(resource, authorities);
+            }
+            return new UserBO(userInfo, authorities);
+        }catch (IllegalArgumentException e){
+            throw new UsernameNotFoundException("用户或密码错误，请重新输入");
+        }catch (Exception e){
+            log.error("获取用户信息异常",e);
+            throw new UsernameNotFoundException("用户或密码错误，请重新输入");
+        }
+    }
+}
+
+3.自定义密码加密类：
+
+@Service
+public class CustomPasswordEncoder implements PasswordEncoder {
+    @Override
+    public String encode(CharSequence charSequence) {
+        return charSequence.toString();
+    }
+
+    @Override
+    public boolean matches(CharSequence charSequence, String s) {
+        return s.equals(encode(charSequence));
+    }
+}
+
+4.自定义security认证类：
+
+@Component
+public class LoginAuthenticationProvider extends DaoAuthenticationProvider {
+
+    @Autowired
+    private CustomUserDetailsService customUserDetailsService;
+
+    @Autowired
+    private CustomPasswordEncoder customPasswordEncoder;
+
+    @Autowired
+    private void setJdbcUserDetailsService() {
+        setUserDetailsService(customUserDetailsService);
+    }
+
+    /**
+     * 自定义security国际化
+     */
+    @PostConstruct
+    public void initProvider() {
+        ReloadableResourceBundleMessageSource localMessageSource = new ReloadableResourceBundleMessageSource();
+        localMessageSource.setBasenames("messages_zh_CN");
+        messages = new MessageSourceAccessor(localMessageSource);
+    }
+
+    /**
+     * 复写认证失败方法
+     * @param userDetails
+     * @param authentication
+     * @throws AuthenticationException
+     */
+    @Override
+    protected void additionalAuthenticationChecks(UserDetails userDetails, UsernamePasswordAuthenticationToken authentication) throws AuthenticationException {
+        if (authentication.getCredentials() == null) {
+            logger.debug("Authentication failed: no credentials provided");
+            throw new BadCredentialsException(messages.getMessage("AbstractUserDetailsAuthenticationProvider.badCredentials", "Bad credentials"));
+        }
+        String presentedPassword = authentication.getCredentials().toString();
+        if (!customPasswordEncoder.matches(presentedPassword, userDetails.getPassword())) {
+            logger.debug("Authentication failed: password does not match stored value");
+            throw new BadCredentialsException(messages.getMessage("AbstractUserDetailsAuthenticationProvider.badCredentials", "Bad credentials"));
+        }
+    }
+}

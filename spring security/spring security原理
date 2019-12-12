@@ -1,0 +1,97 @@
+1.认证对象：
+
+public interface Authentication extends Principal, Serializable {
+    Collection<? extends GrantedAuthority> getAuthorities();
+    Object getCredentials();
+    Object getDetails();
+    Object getPrincipal();
+    void setAuthenticated(boolean isAuthenticated) throws IllegalArgumentException;
+}
+
+2.用于获取授权信息：
+public interface UserDetailsService {
+    /**
+     * Locates the user based on the username. In the actual implementation, the search
+     * may possibly be case sensitive, or case insensitive depending on how the
+     * implementation instance is configured. In this case, the <code>UserDetails</code>
+     * object that comes back may have a username that is of a different case than what
+     * was actually requested...
+     */
+    UserDetails loadUserByUsername(String username) throws UsernameNotFoundException;
+}
+
+public interface UserDetails extends Serializable {
+    /**
+     * Returns the authorities granted to the user. Cannot return null.
+     */
+    Collection<? extends GrantedAuthority> getAuthorities();
+    ......
+}
+
+具体的获取UserDetail的过程，要根据具体的业务进行处理，比如从数据库获取，或者从缓存中得到。获取之后包装为Authentication对象供后续Filter使用
+
+3.filter：
+
+AbstractAuthenticationProcessingFilter
+用于认证，其步骤如下：
+
+    从request获取相关用户信息(密码、token等)构造Authentication；
+    AuthenticationManager其中的AuthenticationProvider进行Authentication验证；Provider里可能会获取UserDetails(包含用户具有的权限)放入Authentication中；若验证通过，则返回该Authentication中；否则抛异常；
+    该Filter捕获到异常，则导航到相关error或login页面；若正常，则根据具体的代码设置，由后面的filter继续处理或直接访问到资源；
+
+            // Authentication success. 上面第三步
+        if (continueChainBeforeSuccessfulAuthentication) {
+            chain.doFilter(request, response);
+        }
+
+        successfulAuthentication(request, response, chain, authResult);
+
+FilterSecurityInterceptor和ExceptionTranslationFilter
+这两个filter用于授权。其在Spring Security的Filter Chain中处于很靠后的位置。
+FilterSecurityInterceptor的关键代码如下：
+
+        //获取Authentication
+        Authentication authenticated = authenticateIfRequired();
+
+        // Attempt authorization
+        try {
+            this.accessDecisionManager.decide(authenticated, object, attributes);
+        }
+        catch (AccessDeniedException accessDeniedException) {
+            publishEvent(new AuthorizationFailureEvent(object, attributes, authenticated,
+                    accessDeniedException));
+            //这里抛出去的异常会由ExceptionTranslationFilter捕获
+            throw accessDeniedException;
+        }
+
+
+
+       try {
+            chain.doFilter(request, response);
+
+            logger.debug("Chain processed normally");
+        }
+        catch (IOException ex) {
+            throw ex;
+        }
+        catch (Exception ex) {
+            // Try to extract a SpringSecurityException from the stacktrace
+            Throwable[] causeChain = throwableAnalyzer.determineCauseChain(ex);
+            RuntimeException ase = (AuthenticationException) throwableAnalyzer
+                    .getFirstThrowableOfType(AuthenticationException.class, causeChain);
+
+            if (ase == null) {
+                ase = (AccessDeniedException) throwableAnalyzer.getFirstThrowableOfType(
+                        AccessDeniedException.class, causeChain);
+            }
+
+            if (ase != null) {
+                handleSpringSecurityException(request, response, chain, ase);
+            }
+            else {
+            // Rethrow ServletExceptions and RuntimeExceptions as-is
+                ........
+            }
+        }
+
+

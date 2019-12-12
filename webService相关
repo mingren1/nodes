@@ -1,0 +1,52 @@
+服务端：
+
+package com.leigq.www;
+
+import javax.xml.ws.Endpoint;
+
+public class Main {
+
+    public static void main(String[] args) {
+        //发布天气服务，这里只是简单的测试
+        Endpoint.publish("http://localhost:8085/ws_server/weather", new WeatherService());
+        System.out.println("发布天气服务成功...");
+    }
+}
+
+客户端 生成代码过程：
+
+
+    新建java Project项目，命名为ws_client。
+
+    选中src，鼠标右键，选择Open in terminal打开cmd，当然，你也可以win+R输入cmd,打开dos命令，进入到ws_client项目的src目录。
+
+输入wsimport -keep http://localhost:8085/ws_server/weather?wsdl，点击回车，出现下图情况即为生成成功。（还可以将wsimport -keep http://localhost:8085/ws_server/weather?wsdl生成的文档以wsdl为后缀保存到项目中，输入wsimport -keep wsdl文件的路径执行）
+————————————————
+
+客户端调用服务：
+package com.leigq;
+
+/**
+ *  WebServer客户端测试
+ * <p>
+ * 创建人：asus <br>
+ * 创建时间：2019-01-14 14:49 <br>
+ * <p>
+ * 修改人： <br>
+ * 修改时间： <br>
+ * 修改备注： <br>
+ * </p>
+ */
+public class ClientTest {
+
+    public static void main(String[] args) {
+        WeatherServiceService factory = new WeatherServiceService();
+        WeatherService servicePort = factory.getWeatherServicePort();
+        String weather = servicePort.getWeatherByCityname("深圳");
+        System.out.println(weather);
+    }
+
+}
+
+
+

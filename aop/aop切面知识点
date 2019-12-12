@@ -1,0 +1,237 @@
+1.创建注解：
+package com.mb.aop;
+
+import java.lang.annotation.*;
+
+/**
+ * 常用注解说明：
+     * 1. RetentionPolicy(保留策略)是一个enum类型，有三个值
+         * SOURCE        --  这个Annotation类型的信息只会保留在程序源码里，源码如果经过了编译后，Annotation的数据就会消失，并不会保留在编译好的.class文件里
+         * CLASS         --  这个Annotation类型的信息保留在程序源码中，同时也会保留在编译好的.class文件里面,在执行的时候，并不会把这一些信息加载到虚拟 机(JVM)中去.注意一下，当你没有设定一个Annotation类型的Retention值时，系统默认值是CLASS。
+         * RUNTIME       --  在源码、编译好的.class文件中保留信息，在执行的时候会把这一些信息加载到JVM中去的。
+         *
+     * 2.ElementType @Target中的ElementType用来指定Annotation类型可以用在哪些元素上
+         * TYPE(类型)    -- 在Class，Interface，Enum和Annotation类型上
+         * FIELD        -- 属性上
+         * METHOD       -- 方法上
+         * PARAMETER    -- 参数上
+         * CONSTRUCTOR  -- 构造函数上
+         * LOCAL_VARIABLE -- 局部变量
+         * ANNOTATION_TYPE   -- Annotation类型上
+         * PACKAGE           -- 包上
+         *
+      * 3.Documented    -- 让这个Annotation类型的信息能够显示在API说明文档上；没有添加的话，使用javadoc生成的API文件找不到这个类型生成的信息
+ */
+
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface AssertOK {
+
+    String isLogin() default "false";
+
+}
+
+2.创建拦截器：
+package com.mb.aop;
+import com.sun.istack.internal.logging.Logger;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.Signature;
+import org.aspectj.lang.annotation.*;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.core.MethodParameter;
+import org.springframework.stereotype.Component;
+
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
+import java.lang.reflect.TypeVariable;
+
+@Component
+@Aspect
+public class AssertOKAspectj {
+
+    private Logger logger = Logger.getLogger(this.getClass());
+
+    @Pointcut("@annotation(com.mb.aop.AssertOK)")  //表示所有带有AssertOK的注解
+    public void point(){
+
+    }
+
+//    @Pointcut("execution(* com.mb..*.*(..))")  //表示拦截所有com.mb包及子包下的所有的方法
+//    public void point(){
+//
+//    }
+
+    @Around(value = "point()")
+    public Object assertAround(ProceedingJoinPoint pjp){
+
+        //判断注解标识如果不为false则，进行登录
+        Class<?> aClass = pjp.getTarget().getClass(); //先获取被织入增强处理的目标对象，再获取目标类的clazz
+        String methodName = pjp.getSignature().getName(); //先获取目标方法的签名，再获取目标方法的名
+        logger.info("methodName: "+methodName);  // 输出目标方法名
+        Class[] parameterTypes = ((MethodSignature) pjp.getSignature()).getParameterTypes(); //获取目标方法参数类型
+        Object[] args = pjp.getArgs();  //获取目标方法的入参
+        for (int i = 0; i < args.length; i++) {
+            logger.info("argsName: "+args[i]); //输出目标方法的参数
+        }
+        try {
+            Method method = aClass.getMethod(methodName, parameterTypes);  //获取目标方法
+            AssertOK annotation = method.getAnnotation(AssertOK.class);  //获取方法上的注解
+            annotation.isLogin();  //获取注解函数值
+            long starttime = System.currentTimeMillis();
+            Object proceed = pjp.proceed();  //执行目标方法
+            long exctime = System.currentTimeMillis() - starttime;
+            logger.info("执行时间："+exctime + "毫秒");
+            logger.info("proceed: "+proceed);  //打印目标方法的return结果
+        } catch (Throwable throwable) {
+            throwable.printStackTrace();
+        }
+        return "aop的返回值";
+    }
+
+}
+
+3、程序验证1：
+package com.mb.request;
+
+import com.mb.aop.AssertOK;
+import org.springframework.stereotype.Component;
+
+@Component
+public class Login {
+
+    @AssertOK(isLogin = "ture")
+    public String login(String username,String password){
+        System.out.println(username+" 登录成功 "+", 登录的密码是 "+password);
+        return "登录成功";
+    }
+
+    @AssertOK(isLogin = "false")
+    public String loginOnline(String name,String pwd){
+        String login = login(name, pwd);
+        System.out.println("login 的返回值："+login);
+        return "loginOnline 成功";
+    }
+}
+3.1程序验证2：
+package com.mb.request;
+
+import com.mb.aop.AssertOK;
+import org.springframework.stereotype.Component;
+
+@Component
+public class QueryAccount {
+
+    @AssertOK
+    public String queryAccount(){
+
+        System.out.println("账户查询成功....");
+        return "success";
+    }
+}
+
+4.spring配置：
+
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context-3.0.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+    <!-- 自动扫描web包 ,将带有注解的类 纳入spring容器管理 -->
+    <context:component-scan base-package="com.mb"></context:component-scan>
+
+    <aop:aspectj-autoproxy></aop:aspectj-autoproxy>
+</beans>
+
+5.pom依赖：
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.mb</groupId>
+    <artifactId>aspectjdemo</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>8</source>
+                    <target>8</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+    <dependencies>
+    <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-context</artifactId>
+        <version>4.3.20.RELEASE</version>
+    </dependency>
+    <dependency>
+        <groupId>org.aspectj</groupId>
+        <artifactId>aspectjweaver</artifactId>
+        <version>1.9.1</version>
+    </dependency>
+    <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>4.12</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-test</artifactId>
+        <version>4.3.7.RELEASE</version>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+</project>
+
+6.测试：
+package com.mb.request;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+
+@RunWith(SpringJUnit4ClassRunner.class)
+@ContextConfiguration(locations = {"classpath*:**/applicationContext*.xml"})
+public class RequestTest {
+
+    @Autowired
+    Login login;
+    @Autowired
+    QueryAccount queryAccount;
+
+    @Test
+    public void loginTest(){
+        login.loginOnline("米小圈","123456");
+    }
+}
+
+7.测试结果：
+
+二月 27, 2019 12:04:01 上午 [com.mb.aop.AssertOKAspectj]  invoke0
+信息: methodName: loginOnline
+二月 27, 2019 12:04:01 上午 [com.mb.aop.AssertOKAspectj]  invoke0
+信息: argsName: 米小圈
+二月 27, 2019 12:04:01 上午 [com.mb.aop.AssertOKAspectj]  invoke0
+信息: argsName: 123456
+米小圈 登录成功 , 登录的密码是 123456
+login 的返回值：登录成功
+二月 27, 2019 12:04:01 上午 [com.mb.aop.AssertOKAspectj]  invoke0
+信息: 执行时间：15毫秒
+二月 27, 2019 12:04:01 上午 [com.mb.aop.AssertOKAspectj]  invoke0
+信息: proceed: loginOnline 成功

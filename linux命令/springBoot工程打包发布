@@ -1,0 +1,20 @@
+1.pom
+
+<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+</build>
+2.打包 mvn install
+
+3.linux 中创建nohup.out
+    touch nohup.out
+4.运行jar包
+    nohup java -jar xxx.jar &
+    或
+    nohup java -jar xxx.jar --server.port=8080 &
+5.查看启动日志：
+    tail -fn 1000 nohup.out

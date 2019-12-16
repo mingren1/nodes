@@ -1,0 +1,3 @@
+mvn分析包冲突命令：
+
+mvn dependency:tree

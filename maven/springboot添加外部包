@@ -1,0 +1,47 @@
+1、在src下新建目录lib，将jar包添加到lib中
+
+2、在pom文件里添加配置以下属性，就可以使用jar包了
+        <dependency>
+            <groupId>alidao-jxe</groupId>
+            <artifactId>alidao-jxe</artifactId>
+            <version>1.0</version>
+            <scope>system</scope>
+            <systemPath>${basedir}/src/lib/alidao-jxe-6-1.0.0.jar</systemPath>
+        </dependency>
+
+3、如果打包jar，就需要再配置下，如下，关键最后个resource
+<build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+        <resources>
+            <resource>
+                <directory>src/main/webapp</directory>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>src/main/java</directory>
+                <includes>
+                    <include>**/*.xml</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/lib</directory>
+                <targetPath>BOOT-INF/lib/</targetPath>
+                <includes>
+                    <include>**/*.jar</include>
+                </includes>
+            </resource>
+        </resources>
+    </build>
+
+4、执行打包，完成

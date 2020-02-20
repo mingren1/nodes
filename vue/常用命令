@@ -1,0 +1,5 @@
+初始化vue-cli项目：vue init webpack xiangmuming
+
+运行项目：vue run dev
+
+项目打包命令：npm run build

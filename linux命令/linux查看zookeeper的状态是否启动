@@ -1,0 +1,19 @@
+1.查看Redis是否已经启动
+    redis 启动命令：./redis-server 
+    redis 启动客户端命令:./redis-cli
+    redis 常用命令：
+2.查看zookeeper是否已经启动
+    进入bin目录下执行 zkServer.sh status
+    启动命令：zkServer.sh start
+    停止命令:zkServer.sh stop
+
+3.查看sql是否已经启动
+    查看mysql启动状态命令：service mysqld status
+    mysql启动命令：service mysqld start
+    mysql停止命令：service mysqld stop
+
+4.查看quartz是否已经启动
+
+5.查看rabbitMQ是否已经启动
+    rabbitmq启动命令：rabbitmq-server restart
+    查看rabbitmq状态命令：rabbitmq-server status

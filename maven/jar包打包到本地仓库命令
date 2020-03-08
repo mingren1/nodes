@@ -1,0 +1,8 @@
+
+
+mvn install:install-file -Dfile=D:\repo\mybtais-generator-1.0.0.jar -DgroupId=mybatis.plugins -DartifactId=mybtais-generator -Dversion=1.0.0 -Dpackaging=jar
+
+-Dfile：本地jar包的路径
+-DgroupId、-DartifactId：pom坐标
+-Dversion：jar包版本
+-Dpackaging：打包格式，jar、war

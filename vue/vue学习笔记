@@ -1,0 +1,45 @@
+1.常用符号
+：--强制绑定
+@ --强制绑定并监听
+2.属性
+new Vue({
+    el:'',
+    data:{}//常用属性
+    cumpute:{
+        属性名称(){return this.常用属性+this.常用属性}
+    }//计算属性
+    watch:{
+        属性名称:function(方法参数){
+            。。。
+        }
+    }//属性的监听
+})
+
+//属性监的另外一种写法
+new Vue().$watch('要监听的属性'，function(){
+    
+})
+属性名称：{
+    get(){},//回调函数
+    set(){}//回调函数
+}
+3.
+class绑定-- :class
+style绑定-- :style
+4.常用指令：
+v-if,v-else,v-show//条件判断
+v-for="(person , index) in persons"//循环命令--遍历数组、
+v-for="(对象属性值，对象属性) in persons[0]"//循环遍历对象属性
+5.停止事件冒泡@click.stop
+事件处理：方法名(参数，$event)
+阻止事件的默认行为：@click.prevent
+按键修饰符@keyup
+6.提交表单@submit
+阻止提交表单：@submit.pervent
+7.周期函数mounted() //初始化之后立即调用,
+beforeDestroy(),beforeCreate()
+created(),beforeUpdate()，updated()//更新阶段
+beforeDestroy(),destroyed()//死亡阶段
+8.this.$refs.方法//标签引用
+9.自定义指令：全局指令：Vue.directive('',function())。局部指令：directives:{}。
+10.插件
